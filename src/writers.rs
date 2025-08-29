@@ -107,7 +107,7 @@ impl<'a, M: MemoryAccessor, O: Write> ModuleWriter<'a, M, O> for CSharpModuleWri
                 let field_name = field.read_name(mem);
                 let type_name = field.read_type_name(mem);
                 let offset = field.get_offset();
-                write!(ctx.out,"\t\tpublic static const IntPtr {field_name} = 0x{offset:x}; // {type_name}\n")?;
+                write!(ctx.out,"\t\t\tpublic static const IntPtr {field_name} = 0x{offset:x}; // {type_name}\n")?;
             }
 
             write!(ctx.out, "\t}}\n")?;
