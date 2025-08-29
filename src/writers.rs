@@ -74,7 +74,8 @@ impl<'a, M: MemoryAccessor, O: Write> ModuleWriter<'a, M, O> for RustModuleWrite
             write!(ctx.out, "}}\n")?;
         }
         else {
-            // write!(ctx.out, "mod {} {{ }} // {}\n", class_name, parent)?;
+            let parent = parent.map(|x| format!("// Parent: {x}"));
+            write!(ctx.out, "mod {} {{ }} // {}\n", class_name, parent.unwrap_or_default())?;
         }
 
         Ok(())
@@ -82,12 +83,12 @@ impl<'a, M: MemoryAccessor, O: Write> ModuleWriter<'a, M, O> for RustModuleWrite
 }
 
 impl<'a, M: MemoryAccessor, O: Write> ModuleWriter<'a, M, O> for CSharpModuleWriter  {
-    fn start(_ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
-        Ok(())
+    fn start(ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
+        Ok(write!(ctx.out, "namespace Offsets {{\n")?)
     }
 
-    fn end(_ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
-        Ok(())
+    fn end(ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
+        Ok(write!(ctx.out, "}}")?)
     }
 
     fn write_class(class: &Class, ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
@@ -98,21 +99,22 @@ impl<'a, M: MemoryAccessor, O: Write> ModuleWriter<'a, M, O> for CSharpModuleWri
         let parent = class.read_parent(mem);
         if fields.len() > 0 {
             if let Some(parent) = parent {
-                write!(ctx.out, "// Parent: {}\n", parent)?;
+                write!(ctx.out, "\t// Parent: {}\n", parent)?;
             }
-            write!(ctx.out, "public static class {} {{\n", class_name)?;
+            write!(ctx.out, "\tpublic static class {}\n\t{{\n", class_name)?;
 
             for field in fields {
                 let field_name = field.read_name(mem);
                 let type_name = field.read_type_name(mem);
                 let offset = field.get_offset();
-                write!(ctx.out,"\tpublic const static IntPtr {field_name} = 0x{offset:x}; // {type_name}\n")?;
+                write!(ctx.out,"\t\tpublic static const IntPtr {field_name} = 0x{offset:x}; // {type_name}\n")?;
             }
 
-            write!(ctx.out, "}}\n")?;
+            write!(ctx.out, "\t}}\n")?;
         }
         else {
-            // write!(ctx.out, "public static class {} {{ }} // {}\n", class_name, parent)?;
+            let parent = parent.map(|x| format!("// Parent: {x}"));
+            write!(ctx.out, "\tclass {} {{ }} {}\n", class_name, parent.unwrap_or_default())?;
         }
 
         Ok(())
