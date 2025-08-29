@@ -2,6 +2,28 @@
 use exbase::*;
 use crate::raw_schema::*;
 
+
+#[cfg(target_os = "linux")]
+mod platform {
+    pub const PATTERN: &str = "48 8D 0D ? ? ? ? 48 8D 3D ? ? ? ? E8"; // 10, 14
+
+    pub const TYPE_SCOPE_OFFSET: usize = 0x01F0;
+    pub const CLASS_BINDINGS_OFFSET: usize = 0x0560;
+    // pub const ENUM_BINDINGS_OFFSET: usize = 0x3600;
+}
+
+#[cfg(target_os = "windows")]
+mod platform {
+    pub const PATTERN: &str = "48 89 05 ? ? ? ? 4c 8d 0d ? ? ? ? 0f b6 45"; // 3, 7
+
+    pub const TYPE_SCOPE_OFFSET: usize = 0x0188;
+    pub const CLASS_BINDINGS_OFFSET: usize = 0x0500;
+    // pub const ENUM_BINDINGS_OFFSET: usize = 0x2D90;
+}
+
+use platform::*;
+
+
 pub struct Schema<'a, M> where M: MemoryAccessor {
     type_scopes_len: i32,
     type_scopes_vec: usize,
@@ -30,8 +52,8 @@ impl<'a, M: MemoryAccessor> Schema<'a, M> {
     pub fn new(mem: &'a M, libschema: ModuleInfo) -> Self {
         let schema_system = Self::find_schema_system(mem, libschema);
 
-        let type_scopes_len: i32 = mem.read(schema_system + 0x1F0);
-        let type_scopes_vec: usize = mem.read(schema_system + 0x1F8);
+        let type_scopes_len: i32 = mem.read(schema_system + TYPE_SCOPE_OFFSET);
+        let type_scopes_vec: usize = mem.read(schema_system + TYPE_SCOPE_OFFSET + 0x8);
 
         assert_ne!(type_scopes_len, 0);
 
@@ -55,7 +77,7 @@ impl<'a, M: MemoryAccessor> Schema<'a, M> {
         let mut buf = vec![0u8; libschema.size()];
         mem.read_buffer(&mut buf, libschema.address());
 
-        let pat_offset = *Pattern::new("48 8D 0D ? ? ? ? 48 8D 3D ? ? ? ? E8")
+        let pat_offset = *Pattern::new(PATTERN)
             .unwrap()
             .scan(&mut buf, true)
             .iter()
@@ -73,8 +95,8 @@ impl TypeScope {
         let mut classes: Vec<Class> = Vec::new();
         // let mut enums: Vec<Enum> = Vec::new();
 
-        let class_bindings = address + 0x560 + 0x90;
-        // let enum_bindings = address + 0x3600 + 0x90;
+        let class_bindings = address + CLASS_BINDINGS_OFFSET + 0x90;
+        // let enum_bindings = address + ENUM_BINDINGS_OFFSET + 0x90;
 
         for i in 0..256 {
             let mut node_ptr: usize = mem.read(class_bindings as usize + (i * 0x30) + 0x28);

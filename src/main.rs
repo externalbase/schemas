@@ -45,7 +45,7 @@ pub enum Lang {
 
 impl Lang {
 
-    pub fn write_file(&self, mem: &StreamMem, scopes: &Vec<TypeScope>) -> Result<(), Error> {
+    pub fn write_file(&self, mem: &impl MemoryAccessor, scopes: &Vec<TypeScope>) -> Result<(), Error> {
         for scope in scopes {
             let len = scope.classes.len();
             let file_name = &format!("{}/{}.{}", OUTPUT_DIR, scope.name(), self.extension());
@@ -61,7 +61,7 @@ impl Lang {
         Ok(())
     }
 
-    fn write<W: Write>(&self, mem: &StreamMem, scope: &TypeScope, out: &mut W) -> Result<(), Error> {
+    fn write<W: Write>(&self, mem: &impl MemoryAccessor, scope: &TypeScope, out: &mut W) -> Result<(), Error> {
         let mut ctx = Context::new(mem, scope, out);
         Ok(match self {
             Lang::Rust => RustModuleWriter::write_module(&mut ctx)?,
