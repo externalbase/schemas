@@ -1,28 +1,39 @@
 mod raw_schema;
 mod writers;
 mod dumper;
+mod cli;
 
-use std::{fs::File, io::{Error, Write}};
+use std::{fs::File, io::{Error, Write}, path::PathBuf, sync::RwLock};
 
+use clap::{Parser, ValueEnum};
 use exbase::*;
-use crate::{dumper::*, writers::*};
+use crate::{cli::Cli, dumper::*, writers::*};
 
-// Параметры
-const PROCESS_NAME: &str = "dota2";
-
-const OUTPUT_DIR: &str = "./output";
 const GREEN: &str = "\x1b[32m";
 const RESET: &str = "\x1b[0m";
 
+
+pub static FILTERS: RwLock<Option<Vec<String>>> = RwLock::new(None);
+
 fn main() -> Result<(), Error> {
-    if !std::fs::exists(OUTPUT_DIR)? {
-        std::fs::create_dir(OUTPUT_DIR)?;
+
+    let cli = Cli::parse();
+    let output_dir = &cli.output;
+
+    if cli.filters.is_some() {
+        let mut flt_guard = FILTERS.write().unwrap();
+        *flt_guard = cli.filters;
     }
-    let proc = exbase::get_process_info_list(PROCESS_NAME)
+
+    if !std::fs::exists(output_dir)? {
+        std::fs::create_dir(output_dir)?;
+
+    }
+    let proc = exbase::get_process_info_list(cli.process.clone())
         .unwrap()
         .into_iter()
         .next()
-        .expect("Process not found");
+        .expect(&format!("'{}'not found", cli.process));
 
     let libschema = proc.get_modules()
         .unwrap()
@@ -35,20 +46,23 @@ fn main() -> Result<(), Error> {
     let mut schema = Schema::new(&mem, libschema);
     let scopes = schema.read_scopes();
 
-    Ok(Lang::Rust.write_file(&mem, &scopes)?)
+    Ok(cli.format.write_file(&mem, &scopes, output_dir)?)
 }
 
-pub enum Lang {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum WriteLang {
+    #[value(name = "rs")]
     Rust,
+    #[value(name = "cs")]
     CSharp
 }
 
-impl Lang {
+impl WriteLang {
 
-    pub fn write_file(&self, mem: &impl MemoryAccessor, scopes: &Vec<TypeScope>) -> Result<(), Error> {
+    pub fn write_file(&self, mem: &impl MemoryAccessor, scopes: &Vec<TypeScope>, output_dir: &PathBuf) -> Result<(), Error> {
         for scope in scopes {
             let len = scope.classes.len();
-            let file_name = &format!("{}/{}.{}", OUTPUT_DIR, scope.name(), self.extension());
+            let file_name = &format!("{}/{}.{}", output_dir.display(), scope.name(), self.extension());
             if len > 0 {
                 let mut file = File::create(file_name)?;
                 self.write(mem, scope, &mut file)?;
@@ -64,15 +78,15 @@ impl Lang {
     fn write<W: Write>(&self, mem: &impl MemoryAccessor, scope: &TypeScope, out: &mut W) -> Result<(), Error> {
         let mut ctx = Context::new(mem, scope, out);
         Ok(match self {
-            Lang::Rust => RustModuleWriter::write_module(&mut ctx)?,
-            Lang::CSharp => CSharpModuleWriter::write_module(&mut ctx)?,
+            WriteLang::Rust => RustModuleWriter::write_module(&mut ctx)?,
+            WriteLang::CSharp => CSharpModuleWriter::write_module(&mut ctx)?,
         })
     }
     
     fn extension<'a>(&self) -> &'a str {
         match self {
-            Lang::Rust => "rs",
-            Lang::CSharp => "cs",
+            WriteLang::Rust => "rs",
+            WriteLang::CSharp => "cs",
         }
     }
 }

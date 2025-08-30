@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cargo run -- -o full dota2 cs 

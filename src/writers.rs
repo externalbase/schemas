@@ -29,7 +29,15 @@ pub trait ModuleWriter<'a, M: MemoryAccessor, O: Write> {
 
     fn write_module(ctx: &mut Context<'a, M, O>) -> Result<(), Error> {
         Self::start(ctx)?;
+        let filters = super::FILTERS.read().unwrap();
+        println!("filters: {:?}", filters);
         for class in &ctx.module.classes {
+            if let Some(filters) = filters.as_ref() {
+                let class_name = class.read_name(ctx.mem);
+                if !filters.contains(&class_name) {
+                    continue;
+                }
+            }
             Self::write_class(class, ctx)?
         }
         Self::end(ctx)?;

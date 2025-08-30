@@ -9,7 +9,6 @@ mod platform {
 
     pub const TYPE_SCOPE_OFFSET: usize = 0x01F0;
     pub const CLASS_BINDINGS_OFFSET: usize = 0x0560;
-    // pub const ENUM_BINDINGS_OFFSET: usize = 0x3600;
 }
 
 #[cfg(target_os = "windows")]
@@ -18,7 +17,6 @@ mod platform {
 
     pub const TYPE_SCOPE_OFFSET: usize = 0x0188;
     pub const CLASS_BINDINGS_OFFSET: usize = 0x0500;
-    // pub const ENUM_BINDINGS_OFFSET: usize = 0x2D90;
 }
 
 use platform::*;
@@ -38,11 +36,6 @@ pub struct TypeScope {
 pub struct Class {
     raw: SchemaClassInfoData
 }
-
-// #[derive(Debug)]
-// pub struct Enum {
-//     raw: SchemaEnumInfoData
-// }
 
 pub struct Field {
     raw: SchemaClassFieldData
@@ -93,10 +86,8 @@ impl TypeScope {
         let module_name = mem.read_string(address as usize + 0x08, 256);
 
         let mut classes: Vec<Class> = Vec::new();
-        // let mut enums: Vec<Enum> = Vec::new();
 
         let class_bindings = address + CLASS_BINDINGS_OFFSET + 0x90;
-        // let enum_bindings = address + ENUM_BINDINGS_OFFSET + 0x90;
 
         for i in 0..256 {
             let mut node_ptr: usize = mem.read(class_bindings as usize + (i * 0x30) + 0x28);
@@ -110,33 +101,15 @@ impl TypeScope {
                 node_ptr = mem.read(node_ptr as usize + 0x08);
             }
         }
-
-        // for i in 0..256 {
-        //     let mut node_ptr: usize = mem.read(enum_bindings as usize + (i * 0x30) + 0x28);
-
-        //     while node_ptr != 0 {
-        //         let enum_ptr: usize = mem.read(node_ptr as usize + 0x10);
-        //         if enum_ptr != 0 {
-        //             let r#enum = Enum::new(mem, enum_ptr as usize);
-        //             enums.push(r#enum);
-        //         }
-        //         node_ptr = mem.read(node_ptr as usize + 0x08);
-        //     }
-        // }
-
-        // for enm in enums {
-        //     println!("{}", enm.read_name(mem));
-        // }
         
         Self {
             module_name,
-            classes,
-            // enums
+            classes
         }
     } 
 
     pub fn name(&self) -> String {
-        self.module_name.trim_start_matches("lib").trim_end_matches(".so").to_owned()
+        self.module_name.trim_start_matches("lib").trim_end_matches(".so").trim_end_matches(".dll").to_owned()
     }
 }
 
@@ -174,19 +147,6 @@ impl Class {
         result
     }
 }
-
-// impl Enum {
-//     pub fn new(mem: &impl MemoryAccessor, ptr: usize) -> Self {
-//         let raw = mem.read::<SchemaEnumInfoData>(ptr);
-//         Self {
-//             raw
-//         }
-//     }
-
-//     pub fn read_name(&self, mem: &impl MemoryAccessor) -> String {
-//         mem.read_string(self.raw.name, 256).replace(":", "_")
-//     }
-// }
 
 impl Field {
     pub fn read_name(&self, mem: &impl MemoryAccessor) -> String {

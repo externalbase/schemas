@@ -1,5 +1,40 @@
 
-Works on Linux.
+
+Linux only.
+
+### Usage 
+
+```sh
+Usage: schemas [OPTIONS] <PROCESS> <FORMAT>
+
+Arguments:
+  <PROCESS>  
+  <FORMAT>   [possible values: rs, cs]
+
+Options:
+  -o, --output <OUTPUT>    [default: ./output]
+  -f, --filters <FILTERS>  
+  -h, --help               Print help
+```
+
+### Examples
+
+```sh
+cargo run -- -o full dota2 cs 
+```
+
+```sh
+cargo run -- -o output \
+    -f CBasePlayerController \
+    -f C_DOTAPlayerController \
+    -f C_BaseEntity \
+    -f C_BasePlayerPawn \
+    -f C_DOTA_BaseNPC \
+    -f C_DOTA_BaseNPC_Hero \
+    dota2 rs
+```
+
+### Result
 
 Rust:
 
@@ -17,6 +52,7 @@ pub mod C_BaseEntity {
 	pub const m_iHealth: usize = 0x4c4; // int32
     ...
 ```
+
 C#:
 
 ```cs
